@@ -26,7 +26,12 @@ import Mooc.Todo
 -- Otherwise return "Ok."
 
 workload :: Int -> Int -> String
-workload nExercises hoursPerExercise = todo
+workload nExercises hoursPerExercise
+  | totalHrs > 100 = "Holy moly!"
+  | totalHrs < 10 = "Piece of cake!"
+  | otherwise  = "Ok."
+  where totalHrs = nExercises * hoursPerExercise
+
 
 ------------------------------------------------------------------------------
 -- Ex 2: Implement the function echo that builds a string like this:
@@ -39,7 +44,8 @@ workload nExercises hoursPerExercise = todo
 -- Hint: use recursion
 
 echo :: String -> String
-echo = todo
+echo [] = ""
+echo (l:ls) = (l:ls) ++ ", " ++ echo ls
 
 ------------------------------------------------------------------------------
 -- Ex 3: A country issues some banknotes. The banknotes have a serial
@@ -52,7 +58,8 @@ echo = todo
 -- are valid.
 
 countValid :: [String] -> Int
-countValid = todo
+countValid notes = length (filter id $ map isValid notes) where
+  isValid n = (n !! 2 == n !! 4) || (n !! 3 == n !! 5)
 
 ------------------------------------------------------------------------------
 -- Ex 4: Find the first element that repeats two or more times _in a
@@ -64,7 +71,11 @@ countValid = todo
 --   repeated [1,2,1,2,3,3] ==> Just 3
 
 repeated :: Eq a => [a] -> Maybe a
-repeated = todo
+repeated [] = Nothing
+repeated [x] = Nothing
+repeated (x:xs)
+  | x == head xs = Just x
+  | otherwise = repeated xs
 
 ------------------------------------------------------------------------------
 -- Ex 5: A laboratory has been collecting measurements. Some of the
@@ -86,7 +97,11 @@ repeated = todo
 --     ==> Left "no data"
 
 sumSuccess :: [Either String Int] -> Either String Int
-sumSuccess = todo
+sumSuccess [] = Left "no data"
+sumSuccess ((Right i):is) = Right (i + result (sumSuccess is)) where
+  result (Right r) = r
+  result (Left _) = 0
+sumSuccess ((Left s):ss) = sumSuccess ss
 
 ------------------------------------------------------------------------------
 -- Ex 6: A combination lock can either be open or closed. The lock
@@ -108,30 +123,39 @@ sumSuccess = todo
 --   isOpen (open "0000" (lock (changeCode "0000" (open "1234" aLock)))) ==> True
 --   isOpen (open "1234" (lock (changeCode "0000" (open "1234" aLock)))) ==> False
 
-data Lock = LockUndefined
+data LockStatus = Locked | Unlocked deriving Show
+
+-- Lock code isLocked
+data Lock = Lock String LockStatus
   deriving Show
 
 -- aLock should be a locked lock with the code "1234"
 aLock :: Lock
-aLock = todo
+aLock = Lock "1234" Locked
 
 -- isOpen returns True if the lock is open
 isOpen :: Lock -> Bool
-isOpen = todo
+isOpen (Lock _ Unlocked) = True
+isOpen _ = False
 
 -- open tries to open the lock with the given code. If the code is
 -- wrong, nothing happens.
 open :: String -> Lock -> Lock
-open = todo
+open _ lock'@(Lock trueCode Unlocked) = lock'
+open attemptedCode (Lock trueCode Locked)
+ | attemptedCode == trueCode = Lock trueCode Unlocked
+ | otherwise = Lock trueCode Locked
 
 -- lock closes a lock. If the lock is already closed, nothing happens.
 lock :: Lock -> Lock
-lock = todo
+lock lock'@(Lock _ Locked) = lock'
+lock (Lock code Unlocked) = Lock code Locked
 
 -- changeCode changes the code of an open lock. If the lock is closed,
 -- nothing happens.
 changeCode :: String -> Lock -> Lock
-changeCode = todo
+changeCode _ lock'@(Lock _ Locked) = lock'
+changeCode newCode (Lock _ Unlocked) = Lock newCode Unlocked
 
 ------------------------------------------------------------------------------
 -- Ex 7: Here's a type Text that just wraps a String. Implement an Eq
@@ -148,6 +172,10 @@ changeCode = todo
 
 data Text = Text String
   deriving Show
+
+instance Eq Text where
+  (Text s) == (Text s') = filter (not . Data.Char.isSpace) s
+    == filter (not . Data.Char.isSpace) s'
 
 
 ------------------------------------------------------------------------------
@@ -182,7 +210,11 @@ data Text = Text String
 --       ==> [("a",1),("b",2)]
 
 compose :: (Eq a, Eq b) => [(a,b)] -> [(b,c)] -> [(a,c)]
-compose = todo
+compose [] [] = []
+compose _ [] = []
+compose [] _ = []
+compose list1 list2 =
+  [(fst i1, snd i2) | i1 <- list1, i2 <- list2, snd i1 == fst i2]
 
 ------------------------------------------------------------------------------
 -- Ex 9: Reorder a list using an [(Int,Int)] mapping.
@@ -220,4 +252,22 @@ compose = todo
 type Permutation = [(Int,Int)]
 
 permute :: Permutation -> [a] -> [a]
-permute = todo
+permute [] s = s
+permute _ [] = []
+permute p s = go (sortBy (comparing snd) p) where
+  go [] = []
+  go (p':ps') = (s !! fst p') : go ps'
+
+{- old attempt, got way too complex...
+permute p@(perm1:permRest) i@(input1:inputRest)
+   | uncurry (==) perm1 = permute permRest i
+   | otherwise = permute newPerm newI where
+      newPerm = sortBy (comparing fst) ((newIdx, snd perm1):permRest)
+      notLastElement = fst perm1 + 1 < length i
+      newIdx = if notLastElement then fst perm1 + 1
+        else length i - length p
+      newI = swapIdxs (fst perm1) newIdx i
+      swapIdxs :: Int -> Int -> [a] -> [a]
+      swapIdxs from to s = take from s ++ [s !! to] ++ 
+        take (to - from - 1) (drop (from+1) s) ++ [s !! from] ++ drop (to+1) s
+-}

@@ -64,7 +64,7 @@ justADot = Picture f
 
 -- Here's a picture that's just a solid color
 solid :: Color -> Picture
-solid color = Picture (\coord -> color)
+solid color = Picture (const color)
 
 -- Here's a simple picture:
 examplePicture1 = Picture f
@@ -133,7 +133,10 @@ renderListExample = renderList justADot (9,11) (9,11)
 --      ["000000","000000","000000"]]
 
 dotAndLine :: Picture
-dotAndLine = todo
+dotAndLine = Picture f
+  where f (Coord 3 4) = white
+        f (Coord _ 8) = pink
+        f _             = black
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
@@ -166,10 +169,11 @@ dotAndLine = todo
 --          ["7f0000","7f0000","7f0000"]]
 
 blendColor :: Color -> Color -> Color
-blendColor = todo
+blendColor (Color r1 g1 b1) (Color r2 g2 b2) = Color ((r1 + r2) `div` 2) ((g1 + g2) `div` 2) ((b1 + b2) `div` 2)
 
 combine :: (Color -> Color -> Color) -> Picture -> Picture -> Picture
-combine = todo
+combine passedFunc (Picture pic1Func) (Picture pic2Func) = Picture f where
+  f coord = passedFunc (pic1Func coord) (pic2Func coord)
 
 ------------------------------------------------------------------------------
 
@@ -230,7 +234,8 @@ exampleCircle = fill red (circle 80 100 200)
 --        ["000000","000000","000000","000000","000000","000000"]]
 
 rectangle :: Int -> Int -> Int -> Int -> Shape
-rectangle x0 y0 w h = todo
+rectangle x0 y0 w h = Shape f
+  where f (Coord x y) = x < (x0 + w) && x >= x0 && y < (y0 + h) && y >= y0
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
@@ -246,10 +251,11 @@ rectangle x0 y0 w h = todo
 -- shape.
 
 union :: Shape -> Shape -> Shape
-union = todo
+union (Shape f1) (Shape f2) = Shape (\coord -> f1 coord || f2 coord)
 
 cut :: Shape -> Shape -> Shape
-cut = todo
+cut (Shape f1) (Shape f2) = Shape g where
+  g coord = f1 coord && not (f2 coord)
 ------------------------------------------------------------------------------
 
 -- Here's a snowman, built using union from circles and rectangles.
@@ -277,7 +283,8 @@ exampleSnowman = fill white snowman
 --        ["000000","000000","000000"]]
 
 paintSolid :: Color -> Shape -> Picture -> Picture
-paintSolid color shape base = todo
+paintSolid color (Shape shapeFunc) (Picture baseFunc) = Picture f where
+  f coord = if shapeFunc coord then color else baseFunc coord
 ------------------------------------------------------------------------------
 
 allWhite :: Picture
@@ -322,7 +329,8 @@ stripes a b = Picture f
 --       ["000000","000000","000000","000000","000000"]]
 
 paint :: Picture -> Shape -> Picture -> Picture
-paint pat shape base = todo
+paint (Picture patternFunc) (Shape shapeFunc) (Picture baseFunc) = Picture f where
+  f coord = if shapeFunc coord then patternFunc coord else baseFunc coord
 ------------------------------------------------------------------------------
 
 -- Here's a patterned version of the snowman example. See it by running:
@@ -338,7 +346,7 @@ examplePatterns = (paint (solid black) hat . paint (stripes red yellow) legs . p
 -- Let's implement zooming and flipping images.
 
 flipCoordXY :: Coord -> Coord
-flipCoordXY (Coord x y) = (Coord y x)
+flipCoordXY (Coord x y) = Coord y x
 
 -- Flip a picture by switching x and y coordinates
 flipXY :: Picture -> Picture
@@ -385,19 +393,23 @@ xy = Picture f
 data Fill = Fill Color
 
 instance Transform Fill where
-  apply = todo
+  apply (Fill color) _ = Picture (const color)
 
 data Zoom = Zoom Int
   deriving Show
 
 instance Transform Zoom where
-  apply = todo
+  apply (Zoom z) pic = zoom z pic
 
 data Flip = FlipX | FlipY | FlipXY
   deriving Show
 
 instance Transform Flip where
-  apply = todo
+  apply flip (Picture picFunc) = case flip of
+    FlipX -> Picture (\(Coord x y) -> picFunc (Coord (-x) y))
+    FlipY -> Picture (\(Coord x y) -> picFunc (Coord x (-y)))
+    FlipXY -> Picture (\(Coord x y) -> picFunc (Coord y x))
+
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
@@ -412,8 +424,8 @@ instance Transform Flip where
 data Chain a b = Chain a b
   deriving Show
 
-instance Transform (Chain a b) where
-  apply = todo
+instance (Transform a, Transform b) => Transform (Chain a b) where
+  apply (Chain t1 t2) = apply t1 . apply t2
 ------------------------------------------------------------------------------
 
 -- Now we can redefine largeVerticalStripes using the above Transforms.
@@ -451,7 +463,23 @@ data Blur = Blur
   deriving Show
 
 instance Transform Blur where
-  apply = todo
+  apply Blur (Picture picFunc) = Picture f where
+    -- Need to check bounds for x-1, y+1 etc.?
+    f (Coord x y) = avg (map picFunc neighbors) where
+      neighbors = [Coord x y, Coord (x+1) y,
+                                 Coord (x-1) y, Coord x (y+1), Coord x (y-1)]
+    avg :: [Color] -> Color
+    avg colorList = summedColors // length colorList where
+      (//) :: Color -> Int -> Color
+      (//) (Color r g b) i = Color (r `div` i) (g `div` i) (b `div` i)
+      summedColors = foldr addColors (head colorList) (tail colorList)
+      addColors (Color rCurr gCurr bCurr) (Color rOn gOn bOn) = 
+        Color (rCurr + rOn) (gCurr + gOn) (bCurr + bOn)
+      {- model implementation:
+      summedColors = Color (sum (map getRed colorList)) (sum (map getGreen colorList))
+        (sum (map getBlue colorList)) 
+      -}
+
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
@@ -465,15 +493,25 @@ instance Transform Blur where
 --        ["000000","141414","141414","141414","000000"],
 --        ["000000","000000","0a0a0a","000000","000000"]]
 
+-- This function is EXTREMELY slow. Can't seem to find the issue.
+
 data BlurMany = BlurMany Int
   deriving Show
 
 instance Transform BlurMany where
-  apply = todo
+  apply (BlurMany 0) pic = pic
+  apply (BlurMany blurTimes) pic = apply (BlurMany (blurTimes - 1)) (apply Blur pic)
 ------------------------------------------------------------------------------
 
 -- Here's a blurred version of our original snowman. See it by running
 --   render blurredSnowman 400 300 "blurred.png"
 
 blurredSnowman = apply (BlurMany 2) exampleSnowman
+
+blurredColorSnowman = apply (BlurMany 5) exampleColorful
+
+{- main :: IO ()
+main = do
+  print "Rendering"
+  render blurredColorSnowman 400 300 "blurredCompiled.png" -}
 

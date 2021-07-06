@@ -1,4 +1,0 @@
-import Data.List
-
-isCompleteAlpha :: String -> Bool
-isCompleteAlpha input = (sort . nub $ map toLower $ filter isAlpha input) == "abcdefghijklmnopqrstuvwxyz"

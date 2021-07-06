@@ -15,7 +15,8 @@ data Tree a = Empty | Node a (Tree a) (Tree a)
 -- because the tree might be empty (i.e. just a Empty)
 
 valAtRoot :: Tree a -> Maybe a
-valAtRoot t = todo
+valAtRoot Empty = Nothing
+valAtRoot (Node n _ _) = Just n
 
 ------------------------------------------------------------------------------
 -- Ex 2: compute the size of a tree, that is, the number of Node
@@ -26,7 +27,8 @@ valAtRoot t = todo
 --   treeSize (Node 3 (Node 7 Empty Empty) (Node 1 Empty Empty))  ==>  3
 
 treeSize :: Tree a -> Int
-treeSize t = todo
+treeSize Empty = 0
+treeSize (Node n t1 t2) = 1 + treeSize t1 + treeSize t2
 
 ------------------------------------------------------------------------------
 -- Ex 3: get the largest value in a tree of positive Ints. The
@@ -37,7 +39,8 @@ treeSize t = todo
 --   treeMax (Node 3 (Node 5 Empty Empty) (Node 4 Empty Empty))  ==>  5
 
 treeMax :: Tree Int -> Int
-treeMax = todo
+treeMax Empty = 0
+treeMax (Node n t1 t2) = max n (max (treeMax t1) (treeMax t2))
 
 ------------------------------------------------------------------------------
 -- Ex 4: implement a function that checks if all tree values satisfy a
@@ -49,7 +52,9 @@ treeMax = todo
 --   allValues (>0) (Node 1 Empty (Node 0 Empty Empty))  ==>  False
 
 allValues :: (a -> Bool) -> Tree a -> Bool
-allValues condition tree = todo
+allValues _ Empty = True
+allValues condition (Node n t1 t2) = condition n && allValues condition t1
+  && allValues condition t2
 
 ------------------------------------------------------------------------------
 -- Ex 5: implement map for trees.
@@ -61,7 +66,8 @@ allValues condition tree = todo
 --   ==> (Node 2 (Node 3 Empty Empty) (Node 4 Empty Empty))
 
 mapTree :: (a -> b) -> Tree a -> Tree b
-mapTree f t = todo
+mapTree _ Empty = Empty
+mapTree f (Node n t1 t2) = Node (f n) (mapTree f t1) (mapTree f t2)
 
 ------------------------------------------------------------------------------
 -- Ex 6: given a value and a tree, build a new tree that is the same,
@@ -105,7 +111,8 @@ mapTree f t = todo
 --                 (Node 3 Empty Empty))
 
 cull :: Eq a => a -> Tree a -> Tree a
-cull val tree = todo
+cull val Empty = Empty
+cull val (Node n t1 t2) = if n == val then Empty else Node n (cull val t1) (cull val t2)
 
 ------------------------------------------------------------------------------
 -- Ex 7: check if a tree is ordered. A tree is ordered if:
@@ -147,7 +154,9 @@ cull val tree = todo
 --                     (Node 3 Empty Empty))   ==>   True
 
 isOrdered :: Ord a => Tree a -> Bool
-isOrdered = todo
+isOrdered Empty = True
+isOrdered (Node n t1 t2) = allValues (<n) t1 && allValues (>n) t2 &&
+  isOrdered t1 && isOrdered t2
 
 ------------------------------------------------------------------------------
 -- Ex 8: a path in a tree can be represented as a list of steps that
@@ -166,7 +175,11 @@ data Step = StepL | StepR
 --   walk [StepL,StepL] (Node 1 (Node 2 Empty Empty) Empty)  ==>  Nothing
 
 walk :: [Step] -> Tree a -> Maybe a
-walk = todo
+walk _ Empty = Nothing
+walk [] (Node n _ _) = Just n
+walk (step:steps) (Node _ t1 t2) = case step of
+  StepL -> walk steps t1
+  StepR -> walk steps t2
 
 ------------------------------------------------------------------------------
 -- Ex 9: given a tree, a path and a value, set the value at the end of
@@ -187,7 +200,11 @@ walk = todo
 --   set [StepL,StepR] 1 (Node 0 Empty Empty)  ==>  (Node 0 Empty Empty)
 
 set :: [Step] -> a -> Tree a -> Tree a
-set path val tree = todo
+set _ _ Empty = Empty
+set [] val (Node n t1 t2) = Node val t1 t2
+set (step:steps) val (Node n t1 t2) = case step of
+  StepL -> Node n (set steps val t1) t2
+  StepR -> Node n t1 (set steps val t2)
 
 ------------------------------------------------------------------------------
 -- Ex 10: given a value and a tree, return a path that goes from the
@@ -203,4 +220,14 @@ set path val tree = todo
 --                    (Node 5 Empty Empty))                     ==>  Just [StepL,StepR]
 
 search :: Eq a => a -> Tree a -> Maybe [Step]
-search = todo
+search val Empty = Nothing
+search val (Node n t1 t2)
+  | val == n = Just []
+  | otherwise = case addOrEmpty StepL (search val t1) of
+      Nothing -> addOrEmpty StepR (search val t2)
+      other -> other
+  where
+    addOrEmpty :: Step -> Maybe [Step] -> Maybe [Step]
+    addOrEmpty step searchResult = (\path -> Just (step:path)) =<< searchResult
+                              -- lambda above from VS Code refactor suggestion.
+                              -- my code was: maybe Nothing (\path -> Just (step:path)) searchResult

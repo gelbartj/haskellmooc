@@ -47,10 +47,10 @@ type Col   = Int
 type Coord = (Row, Col)
 
 nextRow :: Coord -> Coord
-nextRow (i,j) = todo
+nextRow (i,j) = (i + 1, 1)
 
 nextCol :: Coord -> Coord
-nextCol (i,j) = todo
+nextCol (i,j) = (i, j + 1)
 
 --------------------------------------------------------------------------------
 -- Ex 2: Implement the function prettyPrint that, given the size of
@@ -99,8 +99,49 @@ nextCol (i,j) = todo
 -- of the width (or height) n of the chess board; the naïve solution with elem
 -- takes O(n^3) time. Just ignore the previous sentence, if you're not familiar
 -- with the O-notation.)
-prettyPrint :: Size -> [Coord] -> String
-prettyPrint = todo
+
+emptyBoard :: Size -> String
+emptyBoard size = go size where
+    go 0 = ""
+    go counter = replicate size '.' ++ "\n" ++ go (counter - 1)
+
+replaceChar :: Int -> Char -> String -> String
+replaceChar idx newChar str = take idx str ++ [newChar] ++ drop (idx + 1) str
+
+prettyPrintFast :: Size -> [Coord] -> String
+prettyPrintFast size [] = emptyBoard size
+prettyPrintFast size coords = go (sort coords) 1 1 where
+    go :: [Coord] -> Int -> Int -> String
+    go [] row col
+     | row > size = ""
+     | otherwise = replicate (size - col + 1) '.' ++ "\n" ++ go [] (row + 1) 1
+    go cs@(coord':coords') row col
+     | row > size = ""
+     | coord' == (row, col) = (if col == size then "Q\n" else "Q") ++ go coords' nextRow nextCol
+     | col == size = ".\n" ++ go cs (row + 1) 1
+     | otherwise = replicate colsRemaining '.' ++ go cs row (col + colsRemaining)
+     where 
+         colsRemaining
+            | row == fst coord' = snd coord' - col
+            | otherwise = size - col
+         nextRow = if col == size then row + 1 else row
+         nextCol = if col == size then 1 else col + 1
+
+-- "Naive" solution
+prettyPrintComp :: Size -> [Coord] -> String
+prettyPrintComp size coords = [ newChar | row <- [1..size], col <- [1..size+1],
+    let newChar | (row, col) `elem` coords = 'Q' | col==size+1 = '\n' | otherwise = '.'
+        ]
+
+-- This is horrendously slow!
+prettyPrintRep :: Size -> [Coord] -> String
+prettyPrintRep size = foldr (\(row, col) board -> 
+    replaceChar ((row - 1) * (size+1) + (col - 1)) 'Q' board ) (emptyBoard size)
+
+prettyPrint = prettyPrintFast
+
+makeCoords :: Int -> [(Int, Int)]
+makeCoords size = [ (i, i `mod` 40) | i <- [1..size] ]
 
 --------------------------------------------------------------------------------
 -- Ex 3: The task in this exercise is to define the relations sameRow, sameCol,
