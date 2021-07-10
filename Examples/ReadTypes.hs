@@ -26,6 +26,8 @@ qualifiedChildren path = do childs <- listDirectory path
 readTypesDir :: String -> IO [String]
 readTypesDir path = do childs <- qualifiedChildren path
                        typess <- forM childs readTypes
+                       putStr "-- "
+                       putStrLn (show typess)
                        return (concat typess)
 
 -- recursively read types contained in a file or directory

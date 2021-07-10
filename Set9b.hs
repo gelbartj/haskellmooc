@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Set9b where
 
 import Mooc.Todo
@@ -165,16 +166,16 @@ makeCoords size = [ (i, i `mod` 40) | i <- [1..size] ]
 --   sameAntidiag (500,5) (5,500) ==> True
 
 sameRow :: Coord -> Coord -> Bool
-sameRow (i,j) (k,l) = todo
+sameRow (i,j) (k,l) = i == k
 
 sameCol :: Coord -> Coord -> Bool
-sameCol (i,j) (k,l) = todo
+sameCol (i,j) (k,l) = j == l
 
 sameDiag :: Coord -> Coord -> Bool
-sameDiag (i,j) (k,l) = todo
+sameDiag (i,j) (k,l) = (k - i) == (l - j)
 
 sameAntidiag :: Coord -> Coord -> Bool
-sameAntidiag (i,j) (k,l) = todo
+sameAntidiag (i,j) (k,l) = (k - i) == negate (l - j)
 
 --------------------------------------------------------------------------------
 -- Ex 4: In chess, a queen may capture another piece in the same row, column,
@@ -230,7 +231,8 @@ type Candidate = Coord
 type Stack     = [Coord]
 
 danger :: Candidate -> Stack -> Bool
-danger = todo
+danger coord = any danger' where
+    danger' queen = any (($ coord) . ($ queen)) [sameRow, sameCol, sameDiag, sameAntidiag]
 
 --------------------------------------------------------------------------------
 -- Ex 5: In this exercise, the task is to write a modified version of
@@ -264,8 +266,70 @@ danger = todo
 -- (For those that did the challenge in exercise 2, there's probably no O(n^2)
 -- solution to this version. Any working solution is okay in this exercise.)
 
-prettyPrint2 :: Size -> Stack -> String
-prettyPrint2 = todo
+prettyPrint2Comp :: Size -> Stack -> String
+prettyPrint2Comp size queens = [ newChar | row <- [1..size], col <- [1..size+1],
+    let newChar | (row, col) `elem` queens = 'Q' | col==size+1 = '\n' | danger (row, col) queens = '#' |  otherwise = '.'
+        ]
+
+type CoordQDanger = ((Int, Int), Char)
+
+dangerMap :: Int -> Stack -> [CoordQDanger]
+dangerMap size queens = [((row, col), '#') | row <- [1..size], col <- [1..size], danger (row, col) queens,
+   (row, col) `notElem` queens]
+
+dangerMapFast :: Int -> Stack -> [CoordQDanger]
+dangerMapFast 0 _ = []
+dangerMapFast _ [] = []
+dangerMapFast size queens = filter (\x -> fst x `notElem` queens) ((sort . nub) $ concatMap (($ queens) . concatMap) [rowCoords, colCoords, diagCoords, antiDiagCoords]) where
+
+    rowCoords :: Coord -> [CoordQDanger]
+    rowCoords queenCoord = [((row, col), '#') | col <- [1..size], col /= snd queenCoord, let row = fst queenCoord]
+
+    colCoords :: Coord -> [CoordQDanger]
+    colCoords queenCoord = [((row, col), '#') | row <- [1..size], row /= fst queenCoord, let col = snd queenCoord]
+
+    antiDiagCoords :: Coord -> [CoordQDanger]
+    antiDiagCoords queenCoord = makeDiag startCoord where
+        makeDiag (row, col)
+         | row > size || col > size = []
+         | (row, col) == queenCoord = makeDiag (row+1, col+1)
+         | otherwise = ((row, col), '#'):makeDiag (row+1, col+1)
+        startCoord = uncurry go queenCoord
+        go row' col' = if row' == 1 || col' == 1 then (row', col') else go (row' - 1) (col' - 1)
+
+    diagCoords :: Coord -> [CoordQDanger]
+    diagCoords queenCoord = makeDiag startCoord where
+        makeDiag (row, col)
+         | row < 1 || col > size = []
+         | (row, col) == queenCoord = makeDiag (row-1, col+1)
+         | otherwise = ((row, col), '#'):makeDiag (row-1, col+1)
+        startCoord = uncurry go queenCoord
+        go row' col' = if row' == size || col' == 1 then (row', col') else 
+            go (row' + 1) (col' - 1)
+
+
+prettyPrint2Fast :: Size -> Stack -> String
+prettyPrint2Fast size [] = emptyBoard size
+prettyPrint2Fast size coords = go (sort ((map (,'Q') coords) ++ 
+    dangerMapFast size coords)) 1 1 where
+    go :: [CoordQDanger] -> Int -> Int -> String
+    go [] row col
+     | row > size = ""
+     | otherwise = replicate (size - col + 1) '.' ++ "\n" ++ go [] (row + 1) 1
+    go cs@(coord':coords') row col
+     | row > size = ""
+     | fst coord' == (row, col) = if col == size then snd coord':'\n':nextRecurse else snd coord':nextRecurse
+     | col == size = '.':'\n':go cs (row + 1) 1
+     | otherwise = replicate colsRemaining '.' ++ go cs row (col + colsRemaining)
+     where 
+         nextRecurse = go coords' nextRow nextCol
+         colsRemaining
+            | row == fst (fst coord') = snd (fst coord') - col
+            | otherwise = size - col
+         nextRow = if col == size then row + 1 else row
+         nextCol = if col == size then 1 else col + 1
+
+prettyPrint2 = prettyPrint2Fast
 
 --------------------------------------------------------------------------------
 -- Ex 6: Now that we can check if a piece can be safely placed into a square in
@@ -306,7 +370,11 @@ prettyPrint2 = todo
 --     Q#######
 
 fixFirst :: Size -> Stack -> Maybe Stack
-fixFirst n s = todo
+fixFirst _ [] = Nothing
+fixFirst size q@(queen:queens)
+    | snd queen > size = Nothing
+    | danger queen queens = fixFirst size ((fst queen, snd queen + 1):queens)
+    | otherwise = Just q
 
 --------------------------------------------------------------------------------
 -- Ex 7: We need two helper functions for stack management.
@@ -328,10 +396,13 @@ fixFirst n s = todo
 -- Hint: Remember nextRow and nextCol? Use them!
 
 continue :: Stack -> Stack
-continue s = todo
+continue [] = []
+continue q@(queen:queens) = nextRow queen:q
 
 backtrack :: Stack -> Stack
-backtrack s = todo
+backtrack [] = []
+backtrack [x] = []
+backtrack (_:newTop:queens) = nextCol newTop:queens
 
 --------------------------------------------------------------------------------
 -- Ex 8: Let's take a step. Our algorithm solves the problem (in a
@@ -400,7 +471,9 @@ backtrack s = todo
 --     step 8 [(6,1),(5,4),(4,2),(3,5),(2,3),(1,1)] ==> [(5,5),(4,2),(3,5),(2,3),(1,1)]
 
 step :: Size -> Stack -> Stack
-step = todo
+step size queens = case fixFirst size queens of
+    Nothing -> backtrack queens
+    Just fixedQueens -> continue fixedQueens
 
 --------------------------------------------------------------------------------
 -- Ex 9: Let's solve our puzzle! The function finish takes a partial
@@ -415,7 +488,10 @@ step = todo
 -- solve the n queens problem.
 
 finish :: Size -> Stack -> Stack
-finish = todo
+finish _ [] = []
+finish size partialSolution
+    | length partialSolution == size + 1 = tail partialSolution
+    | otherwise = finish size (step size partialSolution)
 
 solve :: Size -> Stack
 solve n = finish n [(1,1)]

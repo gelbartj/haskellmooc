@@ -45,7 +45,7 @@ workload nExercises hoursPerExercise
 
 echo :: String -> String
 echo [] = ""
-echo (l:ls) = (l:ls) ++ ", " ++ echo ls
+echo word = word ++ ", " ++ echo (tail word)
 
 ------------------------------------------------------------------------------
 -- Ex 3: A country issues some banknotes. The banknotes have a serial
