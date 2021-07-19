@@ -2,6 +2,7 @@ module Examples.Validation (Validation,invalid,check) where
 
 import Control.Applicative
 import Data.Char (isDigit)
+import Control.Monad (ap)
 
 data Validation a = Ok a | Errors [String]
   deriving (Show,Eq)
@@ -16,6 +17,11 @@ instance Applicative Validation where
   liftA2 f (Errors e1) (Ok y)      = Errors e1
   liftA2 f (Ok x)      (Errors e2) = Errors e2
   liftA2 f (Errors e1) (Errors e2) = Errors (e1++e2)
+
+{- instance Monad Validation where
+  return x = Ok x
+  (Ok x) >>= f = f x
+  (Errors e) >>= f = Errors e -}
 
 invalid :: String -> Validation a
 invalid err = Errors [err]

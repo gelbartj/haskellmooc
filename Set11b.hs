@@ -123,9 +123,10 @@ compose op1 op2 c = do
 hFetchLines :: Handle -> IO [String]
 hFetchLines h = do
     eof <- hIsEOF h
-    line <- if eof then return [] else hGetLine h
-    lines <- if eof then return [] else hFetchLines h
-    if null line then return lines else return (line:lines)
+    if eof then return [] else do
+        line <- hGetLine h
+        lines <- hFetchLines h
+        return (line:lines)
 
 ------------------------------------------------------------------------------
 -- Ex 6: Given a Handle and a list of line indexes, produce the lines
