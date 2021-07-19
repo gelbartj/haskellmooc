@@ -150,8 +150,8 @@ twoPersons :: Applicative f =>
   f String -> f Int -> f Bool -> f String -> f Int -> f Bool
   -> f [Person]
 twoPersons name1 age1 employed1 name2 age2 employed2 =
-  liftA2 (++) (pure <$> (liftA2 Person name1 age1 <*> employed1))
-    (pure <$> (liftA2 Person name2 age2 <*> employed2))
+  liftA2 (++) (pure <$> liftA3 Person name1 age1 employed1)
+    (pure <$> liftA3 Person name2 age2 employed2)
 
 ------------------------------------------------------------------------------
 -- Ex 7: Validate a String that's either a Bool or an Int. The return
@@ -270,7 +270,7 @@ validateNumVar :: String -> Validation Arg
 validateNumVar nv = validateExpNum nv <|> validateVar nv
 -- Previously I had the code below, which does everything <|> does except it does not
 -- bother to check whether something like 1z is a valid variable, since anything 
--- starting with a digit can never be a variable:
+-- starting with a digit can never be a variable anyway:
 --  | isDigit (head nv) = validateExpNum nv
 --  | isAlpha (head nv) = validateVar nv
 --  | otherwise = validateExpNum nv *> validateVar nv
@@ -349,7 +349,7 @@ instance MyApplicative [] where
   myLiftA2 = liftA2
 
 (<#>) :: MyApplicative f => f (a -> b) -> f a -> f b
-fun <#> val = myLiftA2 (\a b -> fun (myPure a)) val (myPure val)
+fun <#> val = myLiftA2 fun val val
 
 ------------------------------------------------------------------------------
 -- Ex 12: Reimplement fmap using liftA2 and pure. In practical terms,
