@@ -1,2 +1,8 @@
 resolver: lts-17.10
 install-ghc: true
+
+#dependencies:
+#  Network.Wai
+#  Network.Wai.Handler.Warp
+#  Network.HTTP
+#  Database.SQLite.Simple

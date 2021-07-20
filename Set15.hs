@@ -86,7 +86,8 @@ calculator' op val = readMaybe val >>= validateOp where
 --  validateDiv 0 3 ==> Ok 0
 
 validateDiv :: Int -> Int -> Validation Int
-validateDiv dividend divisor = check (divisor>0) "Division by zero!" (dividend `div` divisor)
+validateDiv dividend divisor = check (divisor>0) "Division by zero!" 
+  (dividend `div` divisor)
 
 ------------------------------------------------------------------------------
 -- Ex 5: Validating street addresses. A street address consists of a
@@ -176,8 +177,9 @@ validateBool s = check (s `elem` ["True", "False"]) "Not a Bool" (
   )
 
 validateNum :: String -> Validation (Either Bool Int)
-validateNum s = check (Data.Maybe.isJust readVal) "Not an Int" (Right $ fromJust readVal) where
-  readVal = readMaybe s
+validateNum s = check (Data.Maybe.isJust readVal) "Not an Int" 
+  (Right $ fromJust readVal) 
+  where readVal = readMaybe s
 
 boolOrInt :: String -> Validation (Either Bool Int)
 boolOrInt s = validateBool s <|> validateNum s
@@ -276,10 +278,12 @@ validateNumVar nv = validateExpNum nv <|> validateVar nv
 --  | otherwise = validateExpNum nv *> validateVar nv
 
 validateExpNum :: String -> Validation Arg
-validateExpNum num = check (all isDigit num) ("Invalid number: " ++ num) (Number $ fromJust $ readMaybe num)
+validateExpNum num = check (all isDigit num) ("Invalid number: " ++ num) 
+  (Number $ fromJust $ readMaybe num)
 
 validateVar :: String -> Validation Arg
-validateVar var = check (all isAlpha var && length var == 1) ("Invalid variable: " ++ var) (Variable $ head var)
+validateVar var = check (all isAlpha var && length var == 1) 
+  ("Invalid variable: " ++ var) (Variable $ head var)
 
 parseExpression :: String -> Validation Expression
 parseExpression s = validateExpLength sWords *> (
@@ -349,7 +353,7 @@ instance MyApplicative [] where
   myLiftA2 = liftA2
 
 (<#>) :: MyApplicative f => f (a -> b) -> f a -> f b
-fun <#> val = myLiftA2 fun val val
+(<#>) = myLiftA2 id
 
 ------------------------------------------------------------------------------
 -- Ex 12: Reimplement fmap using liftA2 and pure. In practical terms,
@@ -366,8 +370,10 @@ fun <#> val = myLiftA2 fun val val
 --  myFmap negate [1,2,3]  ==> [-1,-2,-3]
 
 myFmap :: MyApplicative f => (a -> b) -> f a -> f b
--- Could not get this to work with `myPure` rather than `pure` below
-myFmap fun val = myLiftA2 (pure . fun) val (myPure val)
+myFmap fun = myLiftA2 id (myPure fun)
+
+-- Somehow this worked too:
+-- myLiftA2 (pure . fun) val (myPure val)
 
 ------------------------------------------------------------------------------
 -- Ex 13: Given a function that returns an Alternative value, and a

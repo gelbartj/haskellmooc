@@ -1,5 +1,4 @@
 module Set14a where
-
 -- Remember to browse the docs of the Data.Text and Data.ByteString
 -- libraries while working on the exercises!
 
@@ -15,6 +14,8 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 
+
+
 ------------------------------------------------------------------------------
 -- Ex 1: Greet a person. Given the name of a person as a Text, return
 -- the Text "Hello, <name>!". However, if the name is longer than 15
@@ -28,7 +29,8 @@ import qualified Data.ByteString.Lazy as BL
 --  greetText (T.pack "Benedict Cumberbatch") ==> "Hello, Benedict Cumber...!"
 
 greetText :: T.Text -> T.Text
-greetText = todo
+greetText text = T.concat [T.pack "Hello, ", T.take 15 text,
+  if T.length text > 15 then T.pack "..." else T.pack "", T.pack "!"]
 
 ------------------------------------------------------------------------------
 -- Ex 2: Capitalize every second word of a Text.
@@ -40,7 +42,12 @@ greetText = todo
 --     ==> "WORD"
 
 shout :: T.Text -> T.Text
-shout = todo
+-- From VSCode suggestions:
+shout input = T.unwords $ zipWith (\ idx w -> (if odd idx then T.toUpper w else w))
+    [1..] (T.words input)
+
+-- I had:
+-- T.unwords $ map (\(idx, w) -> if odd idx then T.toUpper w else w) (zip [1..] (T.words input))
 
 ------------------------------------------------------------------------------
 -- Ex 3: Find the longest sequence of a single character repeating in
@@ -51,20 +58,32 @@ shout = todo
 --   longestRepeat (T.pack "aabbbbccc") ==> 4
 
 longestRepeat :: T.Text -> Int
-longestRepeat = todo
+longestRepeat input
+  | T.length input == 0 = 0
+  | otherwise = maximum $ map T.length $ T.group input
+  {- Formerly:
+  | otherwise = let (answer, _, _) = T.foldr (\c (currMax, currChar, currCount) ->
+      if c == currChar then 
+        if currCount + 1 > currMax then (currCount + 1, currChar, currCount + 1)
+          else (currMax, currChar, currCount + 1)
+        else (currMax, c, 1))
+      (1, T.head input, 1) 
+      (T.tail input)
+      in answer
+  -}
 
 ------------------------------------------------------------------------------
 -- Ex 4: Given a lazy (potentially infinite) Text, extract the first n
 -- characters from it and return them as a strict Text.
 --
 -- The type of the n parameter is Int64, a 64-bit Int. Can you figure
--- out why this is convenient?
+-- out why this is convenient? -- Answer:  the lazy module uses Int64 lengths
 --
 -- Example:
 --   takeStrict 15 (TL.pack (cycle "asdf"))  ==>  "asdfasdfasdfasd"
 
 takeStrict :: Int64 -> TL.Text -> T.Text
-takeStrict = todo
+takeStrict charCount lazyText = TL.toStrict $ TL.take charCount lazyText
 
 ------------------------------------------------------------------------------
 -- Ex 5: Find the difference between the largest and smallest byte
@@ -76,7 +95,9 @@ takeStrict = todo
 --   byteRange (B.pack [3]) ==> 0
 
 byteRange :: B.ByteString -> Word8
-byteRange = todo
+byteRange input
+  | B.length input < 2 = 0
+  | otherwise = B.maximum input - B.minimum input
 
 ------------------------------------------------------------------------------
 -- Ex 6: Compute the XOR checksum of a ByteString. The XOR checksum of
@@ -97,7 +118,7 @@ byteRange = todo
 --   xorChecksum (B.pack []) ==> 0
 
 xorChecksum :: B.ByteString -> Word8
-xorChecksum = todo
+xorChecksum = B.foldr xor 0
 
 ------------------------------------------------------------------------------
 -- Ex 7: Given a ByteString, compute how many UTF-8 characters it
@@ -114,7 +135,9 @@ xorChecksum = todo
 --   countUtf8Chars (B.drop 1 (encodeUtf8 (T.pack "åäö"))) ==> Nothing
 
 countUtf8Chars :: B.ByteString -> Maybe Int
-countUtf8Chars = todo
+countUtf8Chars bytes = case decodeUtf8' bytes of
+  (Left _) -> Nothing
+  (Right s) -> Just (T.length s)
 
 ------------------------------------------------------------------------------
 -- Ex 8: Given a (nonempty) strict ByteString b, generate an infinite
@@ -126,5 +149,4 @@ countUtf8Chars = todo
 --     ==> [0,1,2,2,1,0,0,1,2,2,1,0,0,1,2,2,1,0,0,1]
 
 pingpong :: B.ByteString -> BL.ByteString
-pingpong = todo
-
+pingpong bytes = BL.cycle (BL.fromStrict (B.append bytes (B.reverse bytes)))
