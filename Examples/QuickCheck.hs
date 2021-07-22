@@ -7,12 +7,13 @@ import Data.List
 rev :: [a] -> [a]
 rev [] = []
 rev (x:xs) = xs ++ [x]
+-- correct would be `rev xs ++ [x]`
 
 propRevSmall :: Property
 propRevSmall = rev [1,2] === [2,1]
 
 propRevTwice :: [Int] -> Property
-propRevTwice xs = reverse (reverse xs) === xs
+propRevTwice xs = rev (rev xs) === xs
 
 propRevMedium :: Property
 propRevMedium = conjoin [rev [1,2,2] === [2,2,1],
